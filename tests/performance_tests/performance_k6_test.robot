@@ -1,8 +1,10 @@
 *** Settings ***
 Documentation     Simplified performance tests with K6.
+...               Requires K6 installed: https://k6.io/docs/get-started/installation/
 Library           Process
 Library           OperatingSystem
 Library           DateTime
+Suite Setup       Verify K6 Is Installed
 
 *** Variables ***
 ${K6_SCRIPTS_DIR}     ${CURDIR}/k6_scripts
@@ -17,8 +19,7 @@ Run Basic K6 Load Test
     ${result}=    Run Process
     ...    k6    run    ${K6_SCRIPTS_DIR}/basic_load_test.js    --duration    10s    --vus    5
     ${timestamp}=    Get Current Date    result_format=%Y%m%d%H%M%S
-    ${output_file}=    Set Variable    ${REPORT_DIR}/basic_load_test_${timestamp}.log
-    Create File    ${output_file}    ${result.stdout}
+    Create File    ${REPORT_DIR}/basic_load_test_${timestamp}.log    ${result.stdout}
     Should Be Equal As Integers    ${result.rc}    0
     ...    k6 basic load test failed:\nSTDOUT: ${result.stdout}\nSTDERR: ${result.stderr}
 
@@ -30,7 +31,12 @@ Verify Posts API Performance
     ${result}=    Run Process
     ...    k6    run    ${K6_SCRIPTS_DIR}/posts_api_test.js    --duration    5s    --vus    3
     ${timestamp}=    Get Current Date    result_format=%Y%m%d%H%M%S
-    ${output_file}=    Set Variable    ${REPORT_DIR}/posts_api_test_${timestamp}.log
-    Create File    ${output_file}    ${result.stdout}
+    Create File    ${REPORT_DIR}/posts_api_test_${timestamp}.log    ${result.stdout}
     Should Be Equal As Integers    ${result.rc}    0
     ...    k6 posts API test failed:\nSTDOUT: ${result.stdout}\nSTDERR: ${result.stderr}
+
+*** Keywords ***
+Verify K6 Is Installed
+    ${rc}    ${output}=    Run And Return Rc And Output    k6 version
+    Skip If    ${rc} != 0
+    ...    K6 is not installed. Install it before running performance tests:\n- Windows: winget install k6\n- Mac: brew install k6\n- Linux: https://k6.io/docs/get-started/installation/
