@@ -1,46 +1,70 @@
-# Ignore os arquivos de configuração do ambiente
-.env
-*.env
-
-# Ignore os diretórios de logs e relatórios
-logs/
+# =============================================================
+# Test evidence - all generated artifacts, never version these
+# =============================================================
 reports/
+results/
+logs/
 screenshots/
 
-# Ignore arquivos temporários e de saída
-*.tmp
-*.log
-*.bak
-*.swp
-*.o
-*.pyc
-__pycache__/
+# Root-level Robot Framework artifacts (use --outputdir instead)
+output.xml
+log.html
+report.html
 
-# Ignore pacotes de dependências
+# Screenshots captured by SeleniumLibrary during test runs
+selenium-screenshot-*.png
+
+# =============================================================
+# Python
+# =============================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pdb
 *.egg-info/
 *.egg
 dist/
 build/
 
-# Ignore arquivos gerados pelo Robot Framework
-*.html
-*.xml
+# =============================================================
+# Environment and secrets
+# =============================================================
+.env
+*.env
 
-# Ignore bibliotecas construídas e arquivos de cache
-*.pyo
-*.pdb
+# =============================================================
+# Temporary files
+# =============================================================
+*.tmp
+*.bak
+*.swp
+*.o
+*.log
 
-# Ignore arquivos de teste temporários e de saída
-*.report
-*.json
-
-# Ignore arquivos de configuração específicos de IDEs
+# =============================================================
+# IDE and local tooling
+# =============================================================
 .vscode/
 .idea/
-*.swp
 .coder-ide/
+.claude/
 myenv/
 
-# Ignore arquivos do sistema operacional
+# =============================================================
+# OS
+# =============================================================
 .DS_Store
 Thumbs.db
+
+# =============================================================
+# Images (test screenshots and binary assets)
+# =============================================================
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.webp
+*.ico
+*.tiff

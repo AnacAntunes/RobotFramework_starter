@@ -1,153 +1,102 @@
 *** Settings ***
-Documentation     Executa axe-core via Selenium em uma lista de URLs e salva JSON por página.
-Library           SeleniumLibrary
-Library           OperatingSystem
-Library           String
-Library           ${CURDIR}/../../resources/libraries/a11y_keywords.py
-
-Suite Setup       Preparar Navegador
-Suite Teardown    Close All Browsers
-
-*** Variables ***
-${BROWSER}        chrome
-${OUTPUT_DIR}     ${EXECDIR}/results/accessibility
-${FAIL_ON}        serious
-${URLS_FILE}      ${CURDIR}/../../resources/a11y_urls.txt
-${WIN_WIDTH}      1366
-${WIN_HEIGHT}     900
-
-*** Keywords ***
-Preparar Navegador
-    Open Browser       about:blank    ${BROWSER}    headless=True
-    Set Window Size    ${WIN_WIDTH}   ${WIN_HEIGHT}
-
-Auditar URL
-    [Arguments]    ${url}
-    Go To    ${url}
-    ${safe}=    Replace String Using Regexp    ${url}    [^a-zA-Z0-9\-]    -
-    ${res}=    Run Axe And Save    ${OUTPUT_DIR}    ${safe}    ${FAIL_ON}
-    Log To Console    \n[AXE] ${url} => ${res}
-
-*** Test Cases ***
-A11y Smoke - Lista de Páginas
-    ${raw}=    Get File    ${URLS_FILE}
-    @{URLS}=   Split To Lines    ${raw}
-    FOR    ${url}    IN    @{URLS}
-        Run Keyword If    '${url}'!=''    Auditar URL    ${url}
-    END
-=======
-Documentation     Suite para validar acessibilidade (WCAG) com axe-core via SeleniumLibrary.
+Documentation     Suite to validate accessibility (WCAG) with axe-core via SeleniumLibrary.
 Library           SeleniumLibrary
 Library           OperatingSystem
 Library           Collections
-Suite Setup       Preparar Ambiente
-Suite Teardown    Finalizar Ambiente
-Test Setup        Abrir Página
-Test Teardown     Fechar Página
-# Captura screenshot automático nas falhas
-Library           BuiltIn
+Suite Setup       Set Up Environment
+Suite Teardown    Tear Down Environment
+Test Setup        Open Page
+Test Teardown     Close Page
 
 *** Variables ***
 ${URL}                     https://www.w3.org/WAI/ARIA/apg/example-index/
-# Caminho local do axe; mantenha o arquivo em tests/resources/axe.min.js
-${AXE_SCRIPT}              ${CURDIR}/../resources/axe.min.js
-# Fallback CDN caso o arquivo local não exista
+${AXE_SCRIPT}              ${CURDIR}/../../resources/axe.min.js
 ${AXE_CDN}                 https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.9.1/axe.min.js
-# Parametrizáveis via linha de comando/CI
 ${BROWSER}                 headlesschrome
 ${MAX_VIOLATIONS}          0
-# Filtros WCAG — ajuste conforme necessidade (ex.: adicionar 'wcag21aa')
-@{RUN_ONLY_TAGS}           wcag2a    wcag2aa
+${TAGS_JSON}               ["wcag2a", "wcag2aa"]
 
 *** Test Cases ***
-Validar Acessibilidade com Axe-Core
-    [Documentation]    Executa o axe-core para validar critérios WCAG 2 A/AA na página alvo.
+Validate Accessibility With Axe-Core
+    [Documentation]    Runs axe-core to validate WCAG 2 A/AA criteria on the target page.
     [Tags]             accessibility    wcag    wcag2a    wcag2aa
-    Carregar Axe (Local Ou CDN)
-    ${results}=        Executar Axe E Obter Resultados    @{RUN_ONLY_TAGS}
-    Imprimir Resumo De Violacoes    ${results}
-    Validar Que Nao Ha Violacoes    ${results}    ${MAX_VIOLATIONS}
+    Load Axe (Local Or CDN)
+    ${results}=        Run Axe And Get Results    ${TAGS_JSON}
+    Print Violations Summary    ${results}
+    Validate No Violations    ${results}    ${MAX_VIOLATIONS}
 
 *** Keywords ***
-Preparar Ambiente
-    # Garante logs úteis e screenshot automático nas falhas
+Set Up Environment
     Register Keyword To Run On Failure    Capture Page Screenshot
 
-Finalizar Ambiente
+Tear Down Environment
     Close All Browsers
 
-Abrir Página
+Open Page
     Open Browser    ${URL}    ${BROWSER}
     Set Selenium Implicit Wait    2 s
-    # Opcional: garantir que a página carregou algo significativo
     Wait Until Page Contains Element    css:body    10 s
 
-Fechar Página
+Close Page
     Run Keyword And Ignore Error    Capture Page Screenshot
     Close Browser
 
-Carregar Axe (Local Ou CDN)
-    # Tenta carregar do arquivo local; se não existir, injeta via CDN
-    ${existe}=    Run Keyword And Return Status    File Should Exist    ${AXE_SCRIPT}
-    Run Keyword If    ${existe}    Carregar Axe Local
-    ...    ELSE    Carregar Axe Via CDN
-    Aguardar Axe Disponivel
+Load Axe (Local Or CDN)
+    ${exists}=    Run Keyword And Return Status    File Should Exist    ${AXE_SCRIPT}
+    Run Keyword If    ${exists}    Load Axe From Local
+    ...    ELSE    Load Axe Via CDN
+    Wait For Axe To Be Available
 
-Carregar Axe Local
+Load Axe From Local
     ${axe_script}=    Get File    ${AXE_SCRIPT}
     Execute JavaScript    ${axe_script}
 
-Carregar Axe Via CDN
+Load Axe Via CDN
     Execute Async JavaScript
-    ...    var url = arguments[0];
     ...    var cb = arguments[arguments.length - 1];
     ...    var s = document.createElement('script');
-    ...    s.src = url;
+    ...    s.src = '${AXE_CDN}';
     ...    s.onload = function(){ cb(true); };
     ...    s.onerror = function(){ cb(false); };
     ...    document.head.appendChild(s);
-    ...    return;
-    ...    ${AXE_CDN}
 
-Aguardar Axe Disponivel
-    Wait Until Keyword Succeeds    10x    1s    Verificar Axe Disponivel
+Wait For Axe To Be Available
+    Wait Until Keyword Succeeds    10x    1s    Verify Axe Is Available
 
-Verificar Axe Disponivel
+Verify Axe Is Available
     ${ready}=    Execute JavaScript    return !!(window.axe && window.axe.run);
-    Should Be True    ${ready}    msg=axe-core não disponível no contexto da página.
+    Should Be True    ${ready}    msg=axe-core is not available in the page context.
 
-Executar Axe E Obter Resultados
-    [Arguments]    @{tags}
-    # Executa apenas WCAG A/AA para tornar o scan mais rápido e objetivo
-    ${script}=    Set Variable
-    ...    return axe.run(document, {
-    ...      runOnly: { type: 'tag', values: arguments[0] },
+Run Axe And Get Results
+    [Arguments]    ${tags_json}
+    ${result}=    Execute Async JavaScript
+    ...    var cb = arguments[arguments.length - 1];
+    ...    axe.run(document, {
+    ...      runOnly: { type: 'tag', values: ${tags_json} },
     ...      resultTypes: ['violations']
-    ...    });
-    ${result}=    Execute Async JavaScript    var cb=arguments[arguments.length-1]; ${script}.then(r=>cb(r)).catch(e=>cb({error:e && e.message || String(e)}));
-    Run Keyword If    '${result}'=='None'    Fail    Falha ao executar axe.run (resultado vazio).
-    Run Keyword If    'error' in ${result}    Fail    Erro no axe.run: ${result['error']}
+    ...    }).then(function(r){ cb(r); }).catch(function(e){ cb({error: e && e.message || String(e)}); });
+    Should Not Be Equal    ${result}    ${None}    msg=axe.run returned an empty result.
+    Dictionary Should Not Contain Key    ${result}    error    axe.run error: ${result}
     [Return]    ${result}
 
-Imprimir Resumo De Violacoes
+Print Violations Summary
     [Arguments]    ${result}
     ${violations}=    Set Variable    ${result['violations']}
     ${count}=         Get Length      ${violations}
-    Log To Console    \n===== Resumo de Violações WCAG (total: ${count}) =====
+    Log To Console    \n===== WCAG Violations Summary (total: ${count}) =====
     FOR    ${v}    IN    @{violations}
         ${id}=        Get From Dictionary    ${v}    id
         ${impact}=    Get From Dictionary    ${v}    impact
         ${nodes}=     Get From Dictionary    ${v}    nodes
         ${ncount}=    Get Length    ${nodes}
-        Log To Console    - ${id} | impacto: ${impact} | ocorrências: ${ncount}
+        Log To Console    - ${id} | impact: ${impact} | occurrences: ${ncount}
     END
-    # Salva um JSON resumido no log do Robot para consulta posterior
     Log    ${result}
 
-Validar Que Nao Ha Violacoes
+Validate No Violations
     [Arguments]    ${result}    ${max}
     ${violations}=    Set Variable    ${result['violations']}
     ${count}=         Get Length      ${violations}
-    Log    Quantidade de violações WCAG encontradas: ${count}
-    Should Be True    ${count} <= ${max}    msg=Foram encontradas ${count} violações de acessibilidade (limite permitido: ${max}).
-    Log    Nenhuma violação acima do limite configurado.
+    Log    WCAG violations found: ${count}
+    Should Be True    ${count} <= ${max}    msg=Found ${count} accessibility violations (allowed limit: ${max}).
+    Log    No violations above the configured limit.

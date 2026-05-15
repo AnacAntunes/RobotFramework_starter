@@ -20,18 +20,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install robotframework
-          pip install robotframework-seleniumlibrary
-          pip install robotframework-axe
+          pip install -r requirements.txt
           sudo apt-get install -y chromium-browser
 
+      - name: Create Output Directories
+        run: mkdir -p reports/accessibility
+
       - name: Run Accessibility Tests
-        run: |
-          robot -d results tests/accessibility_tests/
+        run: robot --outputdir reports/accessibility tests/accessibility_tests/
 
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: accessibility-test-results
-          path: results/
+          path: reports/accessibility/

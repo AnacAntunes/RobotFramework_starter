@@ -12,52 +12,45 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-      - name: Log Checkout Completion
-        run: echo "Código fonte verificado com sucesso."
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
-        
-      - name: Install Dependencies
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
         run: |
-          echo "Instalando dependências do projeto..."
           python -m pip install --upgrade pip
-          pip install robotframework==5.0.1
-          pip install robotframework-seleniumlibrary==6.0.0
-          pip install requests==2.32.0 pyyaml==6.0.2
-          echo "Dependências instaladas com sucesso."
+          pip install -r requirements.txt
 
-      - name: Create Directories
+      - name: Install K6
         run: |
-          mkdir -p reports/performance
-          echo "Diretórios para testes criados com sucesso."
-          
-      - name: Verify Docker
-        run: |
-          docker --version
-          docker info
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+          k6 version
 
-      - name: Pull K6 Docker Image
-        run: docker pull grafana/k6:latest
+      - name: Create Output Directories
+        run: mkdir -p results/performance reports/performance
 
       - name: Run Performance Tests
         run: |
-          echo "Executando os testes de performance..."
           robot --outputdir results/performance tests/performance_tests/performance_k6_test.robot
 
       - name: Run Other Tests
         run: |
-          echo "Executando os demais testes (quando existirem)..."
-          robot --outputdir results --exclude performance tests/ || true
+          robot --outputdir results --exclude k6 tests/ || true
 
       - name: Upload Test Reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
             results/
             reports/
-      - name: Log Upload Completion
-        run: echo "Relatórios de testes enviados como artefatos com sucesso."
