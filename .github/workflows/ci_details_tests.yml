@@ -14,32 +14,31 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-      - name: Log Checkout Completion
-        run: echo "Código fonte verificado com sucesso."
 
       - name: Install Robot Framework
         run: |
-          echo "Instalando dependências do Robot Framework..."
           python -m pip install --upgrade pip
-          pip install robotframework
-          echo "Robot Framework instalado com sucesso."
+          pip install -r requirements.txt
+
+      - name: Create Output Directories
+        run: mkdir -p reports/details
 
       - name: Run Robot Framework Tests
-        run: |
-          echo "Executando os testes do Robot Framework..."
-          robot --outputdir results tests/
+        run: robot --outputdir reports/details tests/
 
       - name: Extract Test Results
         run: |
-          echo "Testes que passaram:"
-          grep 'status="PASS"' results/output.xml | awk -F\" '{print $6}'
-          echo "Testes que falharam:"
-          grep 'status="FAIL"' results/output.xml | awk -F\" '{print $6}'
+          echo "Passed tests:"
+          grep 'status="PASS"' reports/details/output.xml | awk -F\" '{print $6}'
+          echo "Failed tests:"
+          grep 'status="FAIL"' reports/details/output.xml | awk -F\" '{print $6}'
 
       - name: Upload Test Reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: results/
+          path: reports/details/
+
       - name: Log Upload Completion
-        run: echo "Relatórios de testes enviados como artefatos com sucesso. Veja os resultados completos em 'results/report.html'."
+        run: echo "Test reports uploaded. See full results at 'reports/details/report.html'."
